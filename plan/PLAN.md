@@ -20,7 +20,7 @@ The hash file comes first and does not wait for the open. Nothing else in this p
 | 2 | HOLD-1 (the reference) | 30 at 150 | 30 at 150 | 12 whole minutes |
 | 3 | HOLD-2 (duel, part 1) | 30, duel rule | 30, duel rule | 12 whole minutes |
 | 4 | HOLD-3 (duel, parts 2 and 3) | 30, duel rule | 30, duel rule | 2 × 12 whole minutes |
-| 5 | HOLD-3 (one-sided variant) | 30, from 150, never steps down | 30, from 150, duel rule | 12 whole minutes |
+| 5 | HOLD-3 (one-sided variant) | 30, from 150, greedy: wants 110 percent of its reference, never steps down | 30, from 150, duel rule | 12 whole minutes |
 | 6 | drain, HOLD-4 | 0 | 0 | the pinned minute; the bot sends only on a free third public kaspad, or files `NO SEND` |
 | 7 | RETURN (after-duel control) | 0 | 0 | 12 whole minutes |
 | 8 | tail | families and lanes stopped, the counter reads on | | 5 minutes |
@@ -51,7 +51,7 @@ Once a minute, at 22 seconds past the minute or later (the counter's line for th
 - at or over 90 percent for 2 minutes in a row: rate × 0.8, rounded, at least 100;
 - otherwise unchanged. An unread, partial or lagging minute holds both rates.
 - **cap guard:** 4 decided minutes in a row with both at 2,000 → `CAP_REACHED` (minutes since the start or the last reset, fees so far), both back to 150, counters cleared.
-- **one-sided variant** (last 12 minutes of HOLD-3): both start again at 150 with cleared counters; lane 1's down step is switched off.
+- **one-sided variant** (last 12 minutes of HOLD-3): both start again at 150 with cleared counters; lane 1 is greedy: it steps up whenever it landed under 110 percent of its reference (not 90), and its down step is switched off. Lane 2 keeps the normal rule.
 
 Both lanes start the duel at 150. Each rule only sees its own lane's landings; it does not see the other lane's rate. The new rates take effect about 22 seconds into the next minute, so each minute after a change is a mix of the old and the new rate. The per-minute snapshot of both rates and every decision are in `logs/duel.log`. Which lane submits first alternates every second, so neither lane always goes first.
 
@@ -66,6 +66,14 @@ In rusty-kaspa v2.1.0 (below) a block is filled by weighted random sampling, wei
 - **Bystanders.** The fixed tiers should lose more the higher the lanes go: floor (100) badly whenever the lanes run, r150 badly once the lanes are above about 150, r300 and r450 only when the lanes pass about 300 and 450. If the lanes reach 2,000, every fixed tier should slow (but a chained hop still lands, as in pre-runs 14–16).
 - **Other users** at up to about the lanes' rate lose more the higher the lanes go; at 150 about what pre-runs 15–16 saw (about 10–13 percent less of other traffic landed on our node).
 - **Cost.** At 150 a lane transaction costs about 0.40 tKAS; at 300 about 0.80; at 2,000 about 5.34. If the pair spirals to the cap, both lanes together would burn about 3,000 tKAS a minute there.
+
+### Addendum to the prediction, still before the run (2026-11-13, about 01:20Z)
+
+We ran the duel controller's own code offline against a toy world (`tools/sim/dueltest17.mjs`: the two lanes split 1,000 heavy places a minute by weight rate^3, no bystanders, no outside stream). Two things came out, and we change one thing because of them:
+
+- **In a pure two-lane world the symmetric rule drifts down, not up.** Both lanes start at 150 and split the places about 50/50, so both sit near 100 percent of their reference, both see good minutes and both step down together to the floor (100), where they still split 50/50. Landing noise of a few percent rarely reaches the 90 percent line. A spiral in the symmetric part therefore needs something the toy world leaves out: the bystander tiers and other traffic. When both lanes step down they lose places to the hops at 100–450 and may fall under 90 percent together, which pushes both back up. So we now expect the symmetric duel to **sit low (100–200) or wander**, and a spiral there would surprise us. This lowers our earlier guess of a median of 200–400.
+- **The first one-sided rule did not climb either.** "Lane 1 never steps down" with the same 90 percent target only made lane 2 step down and then back up (a 120/150 sawtooth). That tests nothing. So, **before the run, we changed the one-sided variant**: lane 1 is now greedy. It wants 110 percent of its reference, which it cannot get against an equal rival, so it steps up every minute it is under that; lane 2 keeps the normal rule. In the toy world this climbs steadily (about 150 → 460 in 12 minutes, both lanes), with no cap. We expect a climb in the real run too: an aggressive side alone is enough to drag a normal side up. We still give the cap within 12 minutes a small chance (it needs 12 up steps in 12 minutes).
+- The offline rehearsal ran the runner before this change; the change is the target value for lane 1 in the one-sided step only, and the toy-world run exercises it.
 
 ## Our heavy lanes
 

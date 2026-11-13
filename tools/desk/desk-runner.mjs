@@ -2,7 +2,7 @@
 //   (xx) kit24 tiers floor 1-4 100, r150 5-8 150, r300 9-12 300, r450 13-16 450, all fixed (the bystanders). Two heavy lanes
 //        of 30 chains each (heavy-lane.mjs runs both). Lane plan: BASE N=0; HOLD-1 = both at 150 (the reference); HOLD-2 and
 //        HOLD-3 parts 2-3 = the duel (36 minutes, each lane's rate moved each minute by one rule); HOLD-3's last 12 minutes
-//        = the one-sided variant (both reset to 150, lane 1 never steps down); then N 0 (the drain) through HOLD-4 and RETURN.
+//        = the one-sided variant (both reset to 150, lane 1 greedy: wants 110% of its reference, never steps down); then N 0 (the drain) through HOLD-4 and RETURN.
 //        Cap guard: 4 decided minutes with both at 2,000 -> recorded and both back to 150. The duel controller is below LANE_PLAN.
 // Pre-run 16 desk runner (the fee-escalation duel). Pre-run 15's runner with these changes on purpose:
 //   (xix) kit23 tiers floor 1-4 fixed 100, r300 5-7 fixed 300, esc 8-16 live (start 150). Lane plan: BASE N=0; HOLD-1 =
@@ -766,7 +766,7 @@ const LANE_PLAN = [
   { step: "BASE", name: "both lanes N=0 (control)", segs: [{ n: 0, n2: 0, rate: 100, rate2: 100, label: "N0-control", min: BASE_MIN }] },
   { step: "HOLD-1", name: "lane 1 N=30 at 150 and lane 2 N=30 at 150 (the reference, no escalation)", segs: [{ n: 30, n2: 30, rate: 150, rate2: 150, label: "L30x2-r150-ref", min: LANE_MIN }] },
   { step: "HOLD-2", name: "the duel, part 1 (both lanes N=30; each lane's rate moved each minute by the same duel rule)", segs: [{ n: 30, n2: 30, rate: 150, rate2: 150, duel: true, label: "L30x2-duel-1", min: LANE_MIN }] },
-  { step: "HOLD-3", name: "the duel, parts 2 and 3, then the one-sided variant (both lanes reset to 150; lane 1 never steps down)", segs: [...[2, 3].map((p) => ({ n: 30, n2: 30, rate: 150, rate2: 150, duel: true, label: `L30x2-duel-${p}`, min: LANE_MIN })), { n: 30, n2: 30, rate: 150, rate2: 150, duel: true, asym: true, label: "L30x2-asym", min: LANE_MIN }] },
+  { step: "HOLD-3", name: "the duel, parts 2 and 3, then the one-sided variant (both lanes reset to 150; lane 1 greedy: wants 110 percent of its reference and never steps down)", segs: [...[2, 3].map((p) => ({ n: 30, n2: 30, rate: 150, rate2: 150, duel: true, label: `L30x2-duel-${p}`, min: LANE_MIN })), { n: 30, n2: 30, rate: 150, rate2: 150, duel: true, asym: true, label: "L30x2-asym", min: LANE_MIN }] },
 ];
 const DRAIN = { n: 0, n2: 0, rate: 100, rate2: 100, label: "N0-drain" };
 // (xx) pre-run 17: the lane-against-lane duel controller. Both sides are ours and the same shape (about 266,700 mass, 30
@@ -778,10 +778,10 @@ const DRAIN = { n: 0, n2: 0, rate: 100, rate2: 100, label: "N0-drain" };
 // -> rate x 0.8 (floor 100). A minute that is unread, partial or lag=1 holds both rates (logged).
 // Cap guard: if both lanes have sat at 2,000 for 4 decided minutes in a row, the spiral is recorded (CAP_REACHED: minutes
 // from the segment start or the last reset, fees so far) and both are put back to 150 (CAP_RESET), so a spiral can be seen
-// again and the spend stays bounded. The one-sided segment (asym) starts both at 150 with fresh counters and lane 1 never
-// steps down. Every decision goes to logs/duel.log and phase.log (DUEL ...). The rates go to control/LANE-RATE and
+// again and the spend stays bounded. The one-sided segment (asym) starts both at 150 with fresh counters; lane 1 is greedy there:
+// it wants 110 percent of its reference (not 90) and never steps down. Lane 2 keeps the normal rule. Every decision goes to logs/duel.log and phase.log (DUEL ...). The rates go to control/LANE-RATE and
 // control/LANE2-RATE (read by heavy-lane.mjs each tick). The drain sets both lanes to N=0.
-const DUEL = { a: 150, b: 150, floor: 100, cap: 2000, up: 1.25, down: 0.8, tgt: 0.9, okNeed: 2, capNeed: 4, aOk: 0, bOk: 0, capRun: 0, refA: null, refB: null, done: new Set(), snap: new Set(), n: 0, seg: null, segAt0: 0, resetAt: 0, asym: false };
+const DUEL = { a: 150, b: 150, floor: 100, cap: 2000, up: 1.25, down: 0.8, tgt: 0.9, tgtGreedy: 1.1, okNeed: 2, capNeed: 4, aOk: 0, bOk: 0, capRun: 0, refA: null, refB: null, done: new Set(), snap: new Set(), n: 0, seg: null, segAt0: 0, resetAt: 0, asym: false };
 const DLOG = P("logs", "duel.log");
 const dlog = (s) => { try { fs.appendFileSync(DLOG, isoZ() + " " + s + "\n"); } catch {} phase("DUEL " + s); };
 const setRates = () => { fs.writeFileSync(P("control", "LANE-RATE"), DUEL.a + "\n"); fs.writeFileSync(P("control", "LANE2-RATE"), DUEL.b + "\n"); };
@@ -811,8 +811,8 @@ function duelTick() {
     if (DUEL.refA == null || DUEL.refB == null || !(DUEL.refA > 0) || !(DUEL.refB > 0)) { dlog(`HOLD min=${prevK}Z reason=no-ref a=${DUEL.a} b=${DUEL.b}`); return; }
     if (!dGood(o)) { dlog(`HOLD min=${prevK}Z reason=${!o ? "unread" : o.final !== "1" ? "not-final" : o.partial === "1" ? "partial" : "lag"} a=${DUEL.a} b=${DUEL.b}`); return; }
     const h1v = Number(o.hv1), h2v = Number(o.hv2), mA = h1v / DUEL.refA, mB = h2v / DUEL.refB, a0 = DUEL.a, b0 = DUEL.b;
-    const move = (r, okk, m, noDown) => { if (m < DUEL.tgt) { DUEL[r] = Math.min(DUEL.cap, Math.round(DUEL[r] * DUEL.up)); DUEL[okk] = 0; } else if (++DUEL[okk] >= DUEL.okNeed) { if (!noDown) DUEL[r] = Math.max(DUEL.floor, Math.round(DUEL[r] * DUEL.down)); DUEL[okk] = 0; } };
-    move("a", "aOk", mA, DUEL.asym); move("b", "bOk", mB, false);
+    const move = (r, okk, m, noDown, tgt = DUEL.tgt) => { if (m < tgt) { DUEL[r] = Math.min(DUEL.cap, Math.round(DUEL[r] * DUEL.up)); DUEL[okk] = 0; } else if (++DUEL[okk] >= DUEL.okNeed) { if (!noDown) DUEL[r] = Math.max(DUEL.floor, Math.round(DUEL[r] * DUEL.down)); DUEL[okk] = 0; } };
+    move("a", "aOk", mA, DUEL.asym, DUEL.asym ? DUEL.tgtGreedy : DUEL.tgt); move("b", "bOk", mB, false);
     let extra = "";
     if (a0 >= DUEL.cap && b0 >= DUEL.cap) DUEL.capRun++; else DUEL.capRun = 0;
     if (DUEL.capRun >= DUEL.capNeed) { dlog(`CAP_REACHED min=${prevK}Z both_at_cap_min=${DUEL.capRun} since_start_min=${Math.round((now - DUEL.resetAt) / 60000)} ${laneFees()}`); DUEL.a = 150; DUEL.b = 150; DUEL.aOk = 0; DUEL.bOk = 0; DUEL.capRun = 0; DUEL.resetAt = now; extra = " cap_reset=1"; }
