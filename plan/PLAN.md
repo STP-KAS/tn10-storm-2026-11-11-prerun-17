@@ -67,7 +67,7 @@ In rusty-kaspa v2.1.0 (below) a block is filled by weighted random sampling, wei
 - **Other users** at up to about the lanes' rate lose more the higher the lanes go; at 150 about what pre-runs 15–16 saw (about 10–13 percent less of other traffic landed on our node).
 - **Cost.** At 150 a lane transaction costs about 0.40 tKAS; at 300 about 0.80; at 2,000 about 5.34. If the pair spirals to the cap, both lanes together would burn about 3,000 tKAS a minute there.
 
-### Addendum to the prediction, still before the run (2026-11-13, about 01:20Z)
+### Addendum to the prediction, still before the run (2026-11-13, about 01:12Z)
 
 We ran the duel controller's own code offline against a toy world (`tools/sim/dueltest17.mjs`: the two lanes split 1,000 heavy places a minute by weight rate^3, no bystanders, no outside stream). Two things came out, and we change one thing because of them:
 

@@ -60,7 +60,14 @@ Not a gate. Read on 2026-11-13 between 00:52Z and 01:10Z. This is our own TN10 t
 
 ## Offline rehearsal, recorded before `PRE-RUN-OPEN`
 
-REHEARSAL_PLACEHOLDER
+Rehearsal `p17-a` ran on the desk against the fake node (no network for the sends), 2026-11-13 01:03:54Z to 01:27:00Z, with 2-minute lane steps (`STORM_LANE_MIN=2`, `STORM_RET_MIN=2`) and the probe's full read capped at 5,000 entries, using this pre-run's lane, counter, probe, kit24 and family-fee files and the runner as it was before the one-sided change below.
+
+- Preflight passed; genesis 16 of 16 live; `FEE_SPLIT` verified floor 100, r150 150, r300 300, r450 450; `LANE_PLAN` BASE N0, HOLD-1 the reference (30 + 30 at 150), HOLD-2 and HOLD-3 the duel, the one-sided step, then the drain.
+- Both lanes submitted from one process with no rejections, no losses and no orphan retries (650 + 650 OK a minute against the fake node); the counter split our landings into lane 1 and lane 2 (hv1, hv2) and the four tiers; the step files show both lanes' N and rate.
+- The duel controller wrote its reference (from the HOLD-1 minutes), a decision every duel minute, the segment starts and the segment-change hold to `logs/duel.log`, with no `ERROR` line. The fake node lands both lanes the same, so in the rehearsal both lanes stepped down together from 150 to 100, which matches the offline run of the controller in the plan's addendum.
+- The probe's light read (`getFeeEstimateExperimental`, verbose) was written every sample. Its over-cap path was tested separately on the live node, read-only, with the cap set below the mempool size: the full read was skipped, ready count, ready mass and ready blocks came from the light read, our lane's count from the by-address read, and the template read still ran.
+- Every step file, TIMELINE, MEMPOOL and METHOD published to the rehearsal's local origin; `RUNNER_EXIT 0`.
+- After the rehearsal, still before the run, the one-sided step was changed (lane 1 greedy, target 110 percent of its reference; see the plan's addendum). That change touches only the target value lane 1 uses in that step; it was run in the offline controller test (`tools/sim/dueltest17.mjs`), not in the rehearsal.
 
 ## Status after the live run
 
