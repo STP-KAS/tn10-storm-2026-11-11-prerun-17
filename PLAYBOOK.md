@@ -71,11 +71,22 @@ Rehearsal `p17-a` ran on the desk against the fake node (no network for the send
 
 ## Status after the live run
 
-AFTER_PLACEHOLDER
+Read on 2026-11-13 between 02:12Z and 02:25Z. Not a gate.
+
+- **The run failed before RETURN.** The desk runner (started 01:30:40Z) ran BASE, HOLD-1 (both lanes' reference) and HOLD-2 (duel part 1), every whole minute kept pace and was clean, and published those three step files. At 02:12:41Z, three minutes into HOLD-3, the family lane (key 0) fell under its abort line (`LANE_COINS_LOW coins=2436 usable=17396`); the runner wrote [logs/FAILED.md](logs/FAILED.md) (on origin 02:12:48Z) and stopped the families, both lanes, the counter and the probe itself (`RUN_STOP reason=failed`). Not resumed. No runner process was left on the desk. The private TN10 kaspad (2.1.0) was not stopped. No devnet, `KaspaPublicNode` or miner was started; `serve.mjs` and its keeper were not touched.
+- **Cause: a setup error of ours.** Key 0 was refilled to 47,265 usable tKAS, sized on fees; the families use about 1.06 usable tKAS per OK hop (coins into the chains and change fragments), so the planned run needed about 65,000. See [logs/LESSONS.md](logs/LESSONS.md).
+- The duel, to the stop (15 minutes): both lanes stepped down 150 → 120 → 100 within four minutes and stayed at 100, splitting the heavy places about evenly; neither was ever under 90 percent of its reference. No spiral, no cap, nobody gave up. HOLD-3's later parts and the one-sided variant were not observed. The duel log is [logs/duel.log](logs/duel.log).
+- Our heavy lanes: `LANE_END` 02:12:42Z, 15,160 accepted (lane 1 7,524, lane 2 7,636), 0 rejected, 0 lost, 5,117.08 tKAS fees, 568.50 tKAS parked on our sink key (not swept), 60 in the mempool at the stop.
+- Inclusion to the stop (counter totals): hops 28,136 landed of 28,206 OK, lane 15,055 of 15,160; the rest were in the minute open at the stop.
+- The probe's mempool read worked every sample (the mempool stayed under 250 entries). The outside heavy fee-100 stream of pre-runs 14–16 was absent all run.
+- Mini: the runner (MINI-ARMED 01:28:54Z) published BASE, HOLD-1 and HOLD-2, each read in full, matched the desk in 144 of 144 cohort cells with 0 late removals, and stopped on FAILED.md. Its TN10 kaspad was not wiped or restarted.
+- Bot: nothing sent and no HOLD-4 file. Its waiter saw FAILED.md before any HOLD-3 and stopped (02:12:53Z); no minute was pinned.
+- Keys after the stop (read-only status): key 0 2,433 coins over 3 tKAS, 17,373 usable (abort line 18,000), 2,104 small coins; keys 1–15 have no genesis coin; payment pile 5,438 coins.
+- Results: [logs/LESSONS.md](logs/LESSONS.md), [logs/duel.log](logs/duel.log), and the pre-run 17 block in [locks/LOCKED.md](locks/LOCKED.md).
 
 ### Public statement
 
-We run our own two heavy lanes on TN10 in this pre-run, with the operator's OK, 30 chains each: 12 minutes both at 150, then 48 minutes at rates our duel rule sets between 100 and 2,000 sompi/gram. While they run, other TN10 users' transactions paying up to about the lanes' rates wait longer on the nodes that see them, and more of them wait if the duel climbs. The figures for this run are added here after it. This is our own testing; tKAS has no value.
+We run our own two heavy lanes on TN10 in this pre-run, with the operator's OK, 30 chains each: 12 minutes both at 150, then 48 minutes at rates our duel rule sets between 100 and 2,000 sompi/gram. While they run, other TN10 users' transactions paying up to about the lanes' rates wait longer on the nodes that see them, and more of them wait if the duel climbs. In this run the lanes ran 27 minutes before the run stopped (12 at 150, then the duel stepped both down to 100). In those minutes other traffic landed on our desk node had a median of 2,946 a minute with the lanes at 150 and 2,965 at 100, against 3,152 with the lanes at 0 (BASE): about 6–7 percent lower. The node's priority fee estimate read a median of 380 (lanes at 150) and 314 (at 100) instead of 175, and our own hops at 100, a stand-in for a low-fee user, ran at 35–43 percent of their BASE pace with the lanes at 150 and 65–74 percent at 100. No outside heavy stream was present. The lanes stopped with the run at 02:12:41Z. This is our own testing; tKAS has no value.
 
 ## When something breaks
 

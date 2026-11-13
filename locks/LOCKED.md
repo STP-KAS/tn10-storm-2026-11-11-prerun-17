@@ -529,3 +529,11 @@ These lines are baked into this repo's own pastes. They come from pre-run 16's l
 ## Locked during pre-run 17
 
 When a fix works, append it here, one block per fix, in the form shown above: UTC time, what failed or worked, what was changed, why that change stays.
+
+```
+- 2026-11-13T02:12:41Z.
+- What failed: the family lane (key 0) reached its abort line (usable 17,396 tKAS against 18,000, 2,436 coins) three minutes into HOLD-3; the runner stopped the run and wrote FAILED.md. Cause: key 0 was refilled to 47,265 usable before the open, sized on fees; the families use about 1.06 usable tKAS per OK hop (29,892 for 28,206 OK hops), so the planned run needed about 65,000.
+- What worked: two heavy lanes in one process (15,160 accepted, 0 rejected, 0 lost, 5,117.08 tKAS fees, 568.50 parked, not swept), the hv1/hv2 split, the duel controller and its log, the probe's mempool read (every sample), BASE/HOLD-1/HOLD-2 on origin with every minute clean. Duel: both lanes 150 -> 120 -> 100 in four minutes, then 100/100, never under 90 percent of their references; no spiral, no cap. Mini 144 of 144, 0 late removals. Bot halted on FAILED.md, nothing sent.
+- What was changed: nothing during the run. The duel log was copied unchanged to logs/duel.log after the stop.
+- Why that change stays, for the next repo: keep the two-lane process, the duel controller and its log, the probe fix, pricing on the node's mass, the calibrations, the pre-arm free check and Mini's count. Size key 0 on use: at least about 70,000 usable at the open for 16 families through RETURN, and consolidate its 2,104 small coins first. Run the one-sided variant early or alone; a symmetric duel of equals drifts down.
+```
